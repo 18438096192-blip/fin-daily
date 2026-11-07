@@ -63,9 +63,14 @@ def main():
         f.write(report)
     print("      已保存 %s（摘要模式: %s）" % (path, mode))
 
-    print("[3/3] 推送到微信 ...")
-    push.push_all(title + " " + date_str, report)
-    print("完成 ✓")
+    print("[3/3] 推送 ...")
+    if os.environ.get("FIN_NO_PUSH") == "1":
+        print("      已设置 FIN_NO_PUSH=1，跳过推送（仅存档）")
+    elif not cfg.get("push_wechat", True):
+        print("      config.json 中 push_wechat=false，跳过微信推送（仅存档）")
+    else:
+        push.push_all(title + " " + date_str, report)
+    print("完成 ✓  存档: " + path)
 
 
 if __name__ == "__main__":
