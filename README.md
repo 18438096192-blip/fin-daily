@@ -116,6 +116,8 @@ Server酱 / 企业微信机器人 → 你的手机
 | `max_input_items` | 送给模型的新闻条数上限 | `80` |
 | `hours_window` | 只取最近多少小时的新闻 | `24` |
 | `max_digest_items` | 日报条数范围 | `"12~15"` |
+| `fact_check` | 是否启用二次事实核查（剔除无出处内容） | `true` |
+| `push_wechat` | 是否推送到微信（false 则只存档 md） | `true` |
 
 > 💡 改完 `config.json` 提交即可，下次运行自动生效。想立刻看效果就手动 Run workflow。
 
