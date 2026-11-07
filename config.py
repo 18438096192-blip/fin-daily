@@ -9,7 +9,9 @@ DEFAULTS = {
     "extra_instructions": "",
     "max_input_items": 120,
     "hours_window": 36,
-    "max_digest_items": "20~28",
+    "max_digest_items": "8~12",
+    "push_wechat": True,
+    "fact_check": True,
 }
 
 
