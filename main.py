@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
-"""AI 财经日报：抓取免费财经快讯 -> DeepSeek 汇总 -> 推送到个人微信。
+"""AI 财经日报：抓取免费财经快讯 -> 大模型汇总 -> 推送到微信。
 
 用法：
-    python main.py        # 正常运行（本地读 .env，云端读环境变量）
+    python main.py
 
-密钥存放（二选一）：
-    本地  : 同目录 .env 文件（参考 .env.example，勿提交到 git）
-    云端  : GitHub 仓库 Settings -> Secrets -> Actions 里的同名变量
+配置优先级：环境变量 > .env 文件 > config.json > 内置默认值
 """
 import os
 import sys
 from datetime import datetime
 
+import config as cfgmod
 import digest
 import news
 import push
@@ -32,38 +31,40 @@ def load_dotenv(path=".env"):
 
 def main():
     load_dotenv()
-    today = datetime.now(news.BJT)
-    today_str = "%s 周%s" % (today.strftime("%Y-%m-%d"), "一二三四五六日"[today.weekday()])
+    cfg = cfgmod.load()
+    now = datetime.now(news.BJT)
+    date_str = "%s 周%s" % (now.strftime("%Y-%m-%d"), "一二三四五六日"[now.weekday()])
+    title = cfg.get("title") or "每日财经速览"
 
     print("[1/3] 抓取新闻 ...")
-    items, errors = news.collect_news()
+    items, errors = news.collect_news(hours=int(cfg.get("hours_window", 36)))
     if errors:
         print("      以下新闻源失败（不影响整体）:", "; ".join(errors))
     print("      去重后共 %d 条" % len(items))
     if not items:
         print("!! 未抓到任何新闻，退出")
         sys.exit(1)
-    items = items[:120]  # 控制 AI 输入长度
+    items = items[:int(cfg.get("max_input_items", 120))]
 
     print("[2/3] 生成日报 ...")
-    body, mode = digest.make_digest(items)
+    body, mode = digest.make_digest(items, cfg)
     report = "\n".join([
-        "# 📊 硬科技财经日报 · " + today_str,
+        "# 📊 " + title + " · " + date_str,
         "",
         body,
         "",
         "---",
-        "*AI 自动汇总 · 聚焦芯片/光通信/存储/AI算力/先进封装 + 重大宏观 · 数据源：新浪财经 / 东方财富 / 金十*",
+        "*AI 自动汇总 · 关注方向：" + "、".join(cfg.get("topics") or []) + " · 数据源：新浪财经 / 东方财富 / 金十*",
         "",
     ])
     os.makedirs("reports", exist_ok=True)
-    path = os.path.join("reports", today.strftime("%Y-%m-%d") + ".md")
+    path = os.path.join("reports", now.strftime("%Y-%m-%d") + ".md")
     with open(path, "w", encoding="utf-8") as f:
         f.write(report)
     print("      已保存 %s（摘要模式: %s）" % (path, mode))
 
     print("[3/3] 推送到微信 ...")
-    push.push_serverchan("硬科技日报 " + today_str, report)
+    push.push_all(title + " " + date_str, report)
     print("完成 ✓")
 
 
