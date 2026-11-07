@@ -113,10 +113,42 @@ def fetch_jin10(limit=50):
     return out
 
 
+def fetch_sina_tech(limit=30):
+    """新浪科技·滚动（科技/半导体/AI 相关）。"""
+    url = ("https://feed.mix.sina.com.cn/api/roll/get?"
+           "pageid=372&lid=2431&k=&num=%d&page=1" % limit)
+    items = _get_json(url)["result"]["data"]
+    out = []
+    for it in items:
+        text = _clean(it.get("title"))
+        if not text:
+            continue
+        out.append({"source": "新浪科技", "time": _parse_time(it.get("ctime")), "text": text})
+    return out
+
+
+def fetch_eastmoney_tech(limit=30):
+    """东方财富·科技新闻栏目。"""
+    url = ("https://np-listapi.eastmoney.com/comm/web/getNewsByColumns?"
+           "client=web&biz=web_news_col&column=345&order=1&needInteractData=0"
+           "&page_index=1&page_size=%d&req_trace=1" % limit)
+    data = _get_json(url)
+    items = data.get("data", {}).get("list") or data.get("data") or []
+    out = []
+    for it in items:
+        text = _clean(it.get("title"))
+        if not text:
+            continue
+        out.append({"source": "东财科技", "time": _parse_time(it.get("showTime") or it.get("date")),
+                    "text": text})
+    return out
+
+
 def collect_news(hours=36):
     """抓取全部新闻源 -> 去重 -> 只保留近 hours 小时（时间缺失的保留）。"""
     raw, errors = [], []
-    for fn in (fetch_sina_724, fetch_sina_roll, fetch_eastmoney, fetch_jin10):
+    for fn in (fetch_sina_724, fetch_sina_roll, fetch_eastmoney, fetch_jin10,
+               fetch_sina_tech, fetch_eastmoney_tech):
         try:
             raw.extend(fn())
         except Exception as e:  # 单源失败不影响整体
