@@ -6,7 +6,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: write   # 允许把日报提交回仓库
+  contents: write   # 允许把日报提交回仓库存档
 
 jobs:
   send:
@@ -18,8 +18,9 @@ jobs:
           python-version: "3.11"
       - name: 生成并推送日报
         env:
-          LLM_API_KEY: ${{ secrets.ALIYUN_API_WECHAT || secrets.DEEPSEEK_SCHOOL_KEY || secrets.DEEPSEEK_API_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ALIYUN_API_WECHAT || secrets.DEEPSEEK_SCHOOL_KEY }}
           SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           LLM_BASE_URL: ${{ vars.LLM_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1' }}
           LLM_MODEL: ${{ vars.LLM_MODEL || 'qwen3.7-max' }}
           LLM_MAX_TOKENS: "2200"
