@@ -43,17 +43,17 @@ def main():
     if not items:
         print("!! 未抓到任何新闻，退出")
         sys.exit(1)
-    items = items[:80]  # 控制 AI 输入长度
+    items = items[:120]  # 控制 AI 输入长度
 
     print("[2/3] 生成日报 ...")
     body, mode = digest.make_digest(items)
     report = "\n".join([
-        "# 📊 每日财经速览 · " + today_str,
+        "# 📊 硬科技财经日报 · " + today_str,
         "",
         body,
         "",
         "---",
-        "*AI 自动汇总并推送 · 数据源：新浪财经7×24 / 东方财富快讯 / 金十数据 / 新浪滚动*",
+        "*AI 自动汇总 · 聚焦芯片/光通信/存储/AI算力/先进封装 + 重大宏观 · 数据源：新浪财经 / 东方财富 / 金十*",
         "",
     ])
     os.makedirs("reports", exist_ok=True)
@@ -63,7 +63,7 @@ def main():
     print("      已保存 %s（摘要模式: %s）" % (path, mode))
 
     print("[3/3] 推送到微信 ...")
-    push.push_serverchan("财经速览 " + today_str, report)
+    push.push_serverchan("硬科技日报 " + today_str, report)
     print("完成 ✓")
 
 
