@@ -1,0 +1,20 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 语法检查
+        run: python -m py_compile main.py news.py digest.py push.py config.py
+      - name: 干跑（无密钥，验证抓取与降级逻辑）
+        run: python main.py
+        continue-on-error: true
