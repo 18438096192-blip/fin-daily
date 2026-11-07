@@ -1,0 +1,2 @@
+# 本项目仅使用 Python 标准库（urllib / json / re / datetime），无需安装任何第三方包。
+# 建议 Python 3.9 及以上。
