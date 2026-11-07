@@ -18,42 +18,46 @@ import config as cfgmod
 DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 DEFAULT_MODEL = "qwen3.7-max"
 
-PROMPT_TEMPLATE = """你是一位专注{topics_short}赛道的卖方研究员，服务对象是关注产业与投资机会的读者。请把用户给的当日财经快讯，写成一份"有观点、有影响分析"的日报。
+PROMPT_TEMPLATE = """你是一位很会讲财经的朋友，不是券商研究员。读者是普通上班族/学生，没学过金融，早上只有 5 分钟，只想知道两件事：**昨天发生了什么**、**这跟我有什么关系**。
 
-【读者重点关注方向，优先级从高到低】
+【写作风格 —— 这是最重要的部分】
+1. 用大白话，像微信里跟朋友聊天那样讲。**禁用**"估值""传导""边际""出清""beta""beta 修复""戴维斯双击"这类词；万一必须提到某个专业词，立刻在括号里用一句话解释清楚。
+2. 每一条只讲两件事：
+   - ① 发生了什么（一句话说清，不堆数字、不堆机构名）
+   - ② 这意味着什么（对行业、对普通人、对投资者意味着什么，说人话）
+3. 全程 5 分钟能读完：总共 8~12 条，正文控制在 800~1200 字。
+4. 宁可少讲几条讲透，也不要堆一堆看不懂的。
+
+【读者关心的方向】
 {topics_list}
 
-【重大宏观与政策】
-政治、利率、关税、出口管制、产业政策等重大事件必须单独成栏，并明确分析"对上述方向的传导影响"（利多/利空、影响哪条链、路径是什么）。
+【重大事件】
+政治、利率、关税、科技政策这类大事要单独说，并且直接讲明白"这对哪些行业、哪些人是好消息还是坏消息"，不要绕弯子、不要端着。
 {extra}
 
 【输出格式（严格遵守，直接输出 Markdown，不要开场白）】
-## 🎯 今日核心（3 条）
-1. **一句话标题** —— 一句话说明为什么重要
+## 🌅 一句话看完
+用 1~2 句话说清昨天最重要的事。
+
+## 🔥 最该知道的三件事
+1. **大白话标题**：发生了什么。👉 **放到你身上**：意味着什么
 2. ...
 3. ...
 
-## 🔬 产业链动态
-### {first_topic}
-- ★★★ **标题**：事件要点。**影响**：一句话分析（利好/利空谁、传导路径）
-（某个子板块当天没有新闻就整节省略，严禁编造）
-### 其他方向同理
+## 📌 还值得看一眼
+- **标题**：发生了什么。👉 意味着什么
+- （从这里开始 5~8 条，按关注方向挑，无关的直接不要）
 
-## 🌍 宏观与政策
-- ★★★ **标题**：要点。**影响**：对上述方向的方向性判断
-
-## ⚠️ 风险提示
-- 1~3 条，结合当日新闻点出需要警惕的变量
-
-## 💡 研究员观点
-3~4 句话，串联当日主线，给出对后续 1~2 周催化剂与股价/基本面的判断。
+## 🍵 说句人话
+用 3 句话收尾：昨天的主线是什么、接下来一两周要留意什么、对普通人有什么提醒。
 
 【硬性要求】
-- 每条必须"新闻事实 + 影响分析"，不能只复述标题。
-- 重要度标记 ★~★★★，只标在每条开头。
-- 全文 {max_items} 条信息，宁可少而深，不要多而浅。
-- 严禁编造快讯中没有的具体数字、公司或事件。
-- 使用简体中文，专业但不啰嗦。"""
+- **所有事实必须来自下面提供的快讯清单**。清单里没出现的公司、人物、数字、事件，一律不许写。
+- 特别禁止"凭印象补充"：比如写某个大佬的持仓、某个产品的具体价格、某个机构的预测——**除非清单里明确写了**。
+- 想不起来出处的句子，直接删掉，宁可不写。
+- 不要堆 ★★★ 这种符号；只有特别重要的 1~2 条，前面加一个 ⚠️ 就够。
+- 读起来要像人说话，不要像研报。写完后自己检查一遍：一个没学过金融的人能不能一遍看懂？
+- 全文 {max_items} 条。"""
 
 
 def build_prompt(cfg):
@@ -96,10 +100,42 @@ def make_digest(items, cfg=None):
     if not api_key:
         return _rule_based_digest(items, cfg), "demo"
     try:
-        return _call_llm(api_key, base, model, max_tokens, build_prompt(cfg), user_content), "llm"
+        draft = _call_llm(api_key, base, model, max_tokens, build_prompt(cfg), user_content)
+        if cfg.get("fact_check", True):
+            draft = _audit(api_key, base, model, max_tokens, draft, user_content)
+        return draft, "llm"
     except Exception as e:
         body = _rule_based_digest(items, cfg)
         return body + "\n\n> ⚠️ 大模型调用失败（%s），本期为规则版兜底。" % e, "fallback"
+
+
+AUDIT_PROMPT = """你是严格的事实核查员。用户会给你两份材料：
+【A】原始的财经快讯清单
+【B】根据清单写成的日报草稿
+
+请逐条核对 B 中的每一个具体事实（公司名、人名、数字、事件、价格、预测）：
+- 如果 A 中**没有**依据，就删掉这句话，或改写成不带具体数字的笼统说法；
+- 如果 A 中有但写错了，按 A 改正；
+- 保留原有的 Markdown 结构、栏目和口语化风格，**不要添加任何新的内容**；
+- 直接输出修正后的完整日报，不要解释、不要加"核查说明"。
+
+原则：宁可少写一条，也不能留下没有出处的具体事实。"""
+
+
+def _audit(api_key, base, model, max_tokens, draft, user_content):
+    """第二道关卡：核对草稿中的事实是否都能在原始快讯中找到依据。"""
+    try:
+        audit_user = "【A】原始快讯清单：\n" + user_content + "\n\n【B】日报草稿：\n" + draft
+        fixed = _call_llm(api_key, base, model, max_tokens, AUDIT_PROMPT, audit_user)
+        # 如果核查结果异常短，说明模型跑偏了，保留原稿更安全
+        if len(fixed) < len(draft) * 0.5:
+            print("[核查] 返回内容过短，保留原稿")
+            return draft
+        print("[核查] 事实核对完成，已剔除无出处内容")
+        return fixed
+    except Exception as e:
+        print("[核查] 跳过（%s），使用原稿" % e)
+        return draft
 
 
 def _call_llm(api_key, base, model, max_tokens, system_prompt, user_content):
@@ -109,7 +145,7 @@ def _call_llm(api_key, base, model, max_tokens, system_prompt, user_content):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ],
-        "temperature": 0.6,
+        "temperature": 0.35,
         "max_tokens": max_tokens,
     }, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
