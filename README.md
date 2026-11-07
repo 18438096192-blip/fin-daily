@@ -33,7 +33,8 @@ Server酱 推送到你的个人微信（push.py），同时在 reports/ 存档�
 ## 四、部署 5 步
 
 1. 把本项目全部文件上传到 GitHub 仓库（网页拖拽上传即可，注意包含隐藏的 .github 文件夹）
-2. 仓库 Settings → Secrets and variables → Actions → New repository secret，添加两条：DEEPSEEK_API_KEY 和 SERVERCHAN_SENDKEY（值分别为上表拿到的 Key）
+2. 仓库 Settings → Secrets and variables → Actions → New repository secret，添加两条：DEEPSEEK_SCHOOL_KEY（或 DEEPSEEK_API_KEY）和 SERVERCHAN_SENDKEY
+   - 若使用学校/第三方 OpenAI 兼容网关：再到 Settings → Secrets and variables → **Variables** 添加 LLM_BASE_URL（如 https://网关地址/v1）和 LLM_MODEL（如 deepseek-v3）
 3. 打开 Actions 标签页 → 左侧选中 daily-fin-digest → Enable workflow
 4. 点击 Run workflow 手动跑一次，一两分钟后微信应收到日报（没收到就点进该次运行看日志排错；也可先在本机跑 python test_keys.py 自检）
 5. 之后每天北京时间 08:00 自动执行
