@@ -7,6 +7,23 @@ import json
 import os
 import urllib.request
 
+# ===== 可配置：兼容学校网关 / 官方 API / 任何 OpenAI 兼容端点 =====
+# LLM_BASE_URL 例：https://api.deepseek.com  或  https://你的学校网关/v1
+# LLM_MODEL    例：deepseek-chat / deepseek-v3 / gpt-4o-mini ...
+DEFAULT_BASE_URL = "https://api.deepseek.com"
+DEFAULT_MODEL = "deepseek-chat"
+
+
+def _settings():
+    base = os.environ.get("LLM_BASE_URL", DEFAULT_BASE_URL).strip().rstrip("/")
+    model = os.environ.get("LLM_MODEL", DEFAULT_MODEL).strip()
+    max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "1600") or 1600)
+    key = (os.environ.get("LLM_API_KEY")
+           or os.environ.get("DEEPSEEK_API_KEY")
+           or os.environ.get("DEEPSEEK_SCHOOL_KEY")
+           or "").strip()
+    return base, model, max_tokens, key
+
 SYSTEM_PROMPT = """你是《公司金融》课程的财经编辑。请把用户提供的当日财经快讯，整理成一份给金融专硕研究生看的日报：
 
 1. 分四个栏目：【宏观与政策】【融资·IPO·并购】【市场与行情】【监管与行业动态】；其中公司金融主线（融资、IPO、并购、回购、分红、公司治理）优先收录。
@@ -35,28 +52,28 @@ def make_digest(items):
         lines.append("%d. [%s][%s] %s" % (i, t, it["source"], it["text"]))
     user_content = "以下是近24~36小时的财经快讯，请生成今日日报：\n" + "\n".join(lines)
 
-    api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
+    base, model, max_tokens, api_key = _settings()
     if not api_key:
         return _rule_based_digest(items), "demo"
     try:
-        return _call_deepseek(api_key, user_content), "deepseek"
+        return _call_llm(api_key, base, model, max_tokens, user_content), "llm"
     except Exception as e:
         body = _rule_based_digest(items)
         return body + "\n\n> ⚠️ AI 摘要调用失败（%s），本期为规则版兜底。" % e, "fallback"
 
 
-def _call_deepseek(api_key, user_content, model="deepseek-chat"):
+def _call_llm(api_key, base, model, max_tokens, user_content):
     body = json.dumps({
         "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
         ],
-        "temperature": 1.0,
-        "max_tokens": 1600,
+        "temperature": 0.8,
+        "max_tokens": max_tokens,
     }, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
-        "https://api.deepseek.com/chat/completions",
+        base + "/chat/completions",
         data=body,
         headers={
             "Content-Type": "application/json",
@@ -65,9 +82,13 @@ def _call_deepseek(api_key, user_content, model="deepseek-chat"):
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    with urllib.request.urlopen(req, timeout=180) as resp:
         data = json.loads(resp.read().decode("utf-8"))
-    return data["choices"][0]["message"]["content"].strip()
+    content = data["choices"][0]["message"]["content"].strip()
+    if not content:
+        raise RuntimeError("模型返回空内容 finish_reason=%s" % (
+            data["choices"][0].get("finish_reason")))
+    return content
 
 
 def _rule_based_digest(items):
