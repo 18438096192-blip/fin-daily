@@ -1,75 +1,181 @@
-# 📊 AI 财经日报 · fin-daily
+# 📊 fin-daily · AI 财经日报推送
 
-> 每天早上 **08:00**，自动抓取免费财经快讯 → DeepSeek 生成"公司金融视角"日报 → 推送到**个人微信**。
-> 《公司金融》课程作业项目：零服务器、零费用、纯 Python 标准库。
+> 每天早上 08:00，自动抓取财经快讯 → 大模型写成"带影响分析"的日报 → 推送到你的微信。
+> **零服务器、零成本、Fork 即用。**
 
-## 一、它做了什么
+[![Daily Digest](https://github.com/lizhihe-x/fin-daily/actions/workflows/daily.yml/badge.svg)](https://github.com/lizhihe-x/fin-daily/actions/workflows/daily.yml)
+[![CI](https://github.com/lizhihe-x/fin-daily/actions/workflows/ci.yml/badge.svg)](https://github.com/lizhihe-x/fin-daily/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+
+---
+
+## ✨ 它解决了什么问题
+
+市面上的财经 App 给你的是**信息流**：两百条新闻堆在那里，你还得自己判断哪条跟自己的赛道有关、影响是什么。
+
+fin-daily 给你的是**观点**：
+
+- 🎯 **只讲你关心的赛道**（默认芯片/光通信/存储/AI/先进封装，可自由修改）
+- 🧠 **每条都带"影响分析"**，不是复述标题
+- 🌍 **重大宏观单独成栏**，并判断对产业链的传导方向
+- 📱 **每天定时推送到微信**，电脑关机也照发
+- 🗂️ **自动存档**到 `reports/`，随时回看
+
+## 📸 效果预览
+
+```markdown
+## 🎯 今日核心（3 条）
+1. **美中期选举民主党赢得两院** —— 国会分裂或放缓极端科技制裁推进节奏，利好科技板块情绪修复。
+2. **苹果披露人形机器人"大脑"HALO进展** —— 具身智能从仿真走向真实验证，算力与机器人产业链迎催化。
+
+## 🔬 产业链动态
+### 存储
+- ★★ **美光暗盘股价突破700美元**：日内涨1.9%。**影响**：反映资金对存储周期复苏与HBM产能溢价的持续看好，利好国内存储模组厂估值修复。
+
+## 🌍 宏观与政策
+- ★★★ **美中期选举民主党赢得国会两院**：特朗普政府成"跛脚鸭"。**影响**：国会分裂将增加极端对华科技管制法案的立法难度，短期科技制裁预期边际缓和。
+```
+
+完整示例见 [docs/sample-report.md](docs/sample-report.md)。
+
+---
+
+## 🏗️ 工作原理
 
 ```
-GitHub Actions 定时触发（每天 08:00）
+GitHub Actions 定时器（每天 08:00）
         │
         ▼
-抓取免费新闻源：新浪财经7×24 / 东方财富快讯 / 金十数据 / 新浪滚动（news.py）
+抓取 6 个免费财经源（新浪7×24 / 新浪滚动 / 新浪科技 / 东财快讯 / 东财科技 / 金十）
+        │  去重 · 时间窗过滤 · 单源失败自动跳过
+        ▼
+大模型按 config.json 的关注方向，生成"事实 + 影响分析"日报
+        │  （无 Key 时自动降级为关键词规则版，不会失败静默）
+        ▼
+Server酱 / 企业微信机器人 → 你的手机
         │
         ▼
-DeepSeek API 按课程定制提示词生成日报：四栏分类 + 重要度 + 编辑点评（digest.py）
-        │
-        ▼
-Server酱 推送到你的个人微信（push.py），同时在 reports/ 存档一份 Markdown
+自动提交到 reports/ 存档（可回溯、可做周报）
 ```
 
-## 二、效果预览
+**只用 Python 标准库**，无需 `pip install` 任何依赖。
 
-见 sample_report.md（真实数据生成的样例）。微信里将以消息卡片形式收到同样内容。
+---
 
-## 三、一次性准备：注册 3 个免费账号（约 15 分钟）
+## 🚀 三步用起来（约 10 分钟）
 
-| 要注册什么 | 网址 | 你要拿到 | 备注 |
-|---|---|---|---|
-| GitHub | github.com | 一个空仓库 | 公共仓库 Actions 免费用 |
-| DeepSeek 开放平台 | platform.deepseek.com | API Key | 先充值 ¥10（约够用数月，以官网价目为准）；在"API keys"页创建 |
-| Server酱 | sct.ftqq.com | SendKey | 微信扫码登录；**务必按提示关注"Server酱"服务号并绑定微信**，否则收不到 |
+### 第 1 步：Fork 这个仓库
 
-## 四、部署 5 步
+点右上角 **Fork** → 得到你自己的副本。
 
-1. 把本项目全部文件上传到 GitHub 仓库（网页拖拽上传即可，注意包含隐藏的 .github 文件夹）
-2. 仓库 Settings → Secrets and variables → Actions → New repository secret，添加两条：DEEPSEEK_SCHOOL_KEY（或 DEEPSEEK_API_KEY）和 SERVERCHAN_SENDKEY
-   - 若使用学校/第三方 OpenAI 兼容网关：再到 Settings → Secrets and variables → **Variables** 添加 LLM_BASE_URL（如 https://网关地址/v1）和 LLM_MODEL（如 deepseek-v3）
-3. 打开 Actions 标签页 → 左侧选中 daily-fin-digest → Enable workflow
-4. 点击 Run workflow 手动跑一次，一两分钟后微信应收到日报（没收到就点进该次运行看日志排错；也可先在本机跑 python test_keys.py 自检）
-5. 之后每天北京时间 08:00 自动执行
+> 想改关注方向？Fork 后直接编辑 `config.json`（见下方"配置"）。
 
-## 五、本地运行（可选）
+### 第 2 步：填两个 Key
+
+进入你自己的仓库 → **Settings → Secrets and variables → Actions**：
+
+| Secret 名称 | 从哪里获取 |
+|---|---|
+| `LLM_API_KEY` | 阿里云百炼 / DeepSeek / 智谱 等任一 OpenAI 兼容服务的 API Key |
+| `SERVERCHAN_SENDKEY` | [sct.ftqq.com](https://sct.ftqq.com) 微信扫码登录后获取（记得关注"Server酱"服务号并绑定） |
+
+（可选）在 **Variables** 标签页添加：
+
+| Variable | 默认值 | 说明 |
+|---|---|---|
+| `LLM_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | 模型服务地址 |
+| `LLM_MODEL` | `qwen3.7-max` | 模型名 |
+
+### 第 3 步：启用并测试
+
+进入 **Actions** 标签页 → 左侧选 `daily-fin-digest` → **Enable workflow** → 点 **Run workflow**。
+
+一两分钟后微信应收到日报。之后每天北京时间 08:00 自动执行。
+
+---
+
+## ⚙️ 配置（不改代码，只改 config.json）
+
+```json
+{
+  "title": "每日财经速览",
+  "topics": ["芯片 / 半导体", "光通信", "存储", "AI / 算力", "先进封装"],
+  "extra_instructions": "",
+  "max_input_items": 120,
+  "hours_window": 36,
+  "max_digest_items": "20~28"
+}
+```
+
+| 字段 | 作用 | 举例 |
+|---|---|---|
+| `title` | 日报标题 | `"我的科技早报"` |
+| `topics` | **你最关心的方向**，日报按这些分类 | `["新能源", "光伏", "储能"]` |
+| `extra_instructions` | 额外要求，会拼进提示词 | `"每条控制在30字内，多关注A股"` |
+| `max_input_items` | 送给模型的新闻条数上限 | `80` |
+| `hours_window` | 只取最近多少小时的新闻 | `24` |
+| `max_digest_items` | 日报条数范围 | `"12~15"` |
+
+> 💡 改完 `config.json` 提交即可，下次运行自动生效。想立刻看效果就手动 Run workflow。
+
+**不想用这个赛道？** 直接把 `topics` 换成你关心的任何领域——消费、医药、地产、宏观利率都可以，提示词会自动适配。
+
+---
+
+## 🔧 进阶玩法
+
+| 想做什么 | 怎么做 |
+|---|---|
+| 改推送时间 | 编辑 `.github/workflows/daily.yml` 的 `cron`（**UTC 时间**，北京时间 = UTC+8） |
+| 换模型 | 改 Variable `LLM_MODEL`（如 `deepseek-v4-pro`、`glm-5.3`、`kimi-k3`） |
+| 加新闻源 | 在 `news.py` 里照葫芦画瓢加一个 `fetch_xxx()`，再加进 `collect_news` 的列表 |
+| 推送到企业微信群 | 配 `WEBHOOK_URL`（群机器人 webhook），支持 Markdown |
+| 本地跑 | `cp .env.example .env` 填入 Key，然后 `python main.py` |
+
+---
+
+## 📁 项目结构
 
 ```
-copy .env.example .env    # Windows；填入两个 Key（本地专用，勿提交）
-python main.py
+main.py                     # 主流程：抓取 → 汇总 → 推送 → 存档
+config.json                 # ⭐ 用户配置（关注方向、标题、条数）
+config.py                   # 配置加载
+news.py                     # 6 个免费新闻源（容错、去重、时间窗）
+digest.py                   # 提示词构建 + 大模型调用 + 规则版降级
+push.py                     # Server酱 / 企业微信 webhook
+test_keys.py                # 密钥自检
+.github/workflows/daily.yml # 每日定时任务
+.github/workflows/ci.yml    # 提交时自动校验
+reports/                    # 每日日报存档（自动提交）
+docs/sample-report.md       # 效果样例
 ```
 
-## 六、想改点什么
+---
 
-- 改推送时间：编辑 .github/workflows/daily.yml 的 cron（UTC 时间，北京时间 = UTC + 8）
-- 改栏目 / 语气 / 条数：编辑 digest.py 里的 SYSTEM_PROMPT
-- 增删新闻源：编辑 news.py（每个源一个函数，单源失败自动跳过）
-- 换推送通道（如企业微信群机器人 webhook）：改 push.py
+## ❓ FAQ
 
-## 七、这个项目里 AI 的角色（答辩要点）
+**Q：一定要用阿里云吗？**
+不。任何 OpenAI 兼容接口都行——DeepSeek 官方、智谱、Kimi、本地 Ollama（`http://localhost:11434/v1`）都可以，改 `LLM_BASE_URL` 和 `LLM_MODEL` 即可。
 
-1. **AI 写代码**：整条流水线由 AI 规划并编写
-2. **AI 当编辑**：每天把上百条快讯压缩成 12~18 条分栏日报并写点评
-3. 非 AI 的只有"闹钟"（cron）和"邮差"（HTTP 推送）
+**Q：没有 API Key 能跑吗？**
+能跑，但输出的是关键词分类版（无 AI 分析）。配置 Key 后才有完整效果。
 
-## 八、文件结构
+**Q：每天跑一次要花多少钱？**
+GitHub Actions 公共仓库免费；大模型每次约 1 万 token，按各家价格通常几分钱。
 
-```
-main.py                     # 主流程：抓取 → 汇总 → 推送
-news.py                     # 4 个免费新闻源抓取（容错、去重、限时段）
-digest.py                   # AI 汇总（DeepSeek API，无 Key 时规则版兜底）
-push.py                     # Server酱 微信推送
-test_keys.py                # 两个 Key 的快速自检脚本
-.env.example                # 本地密钥模板
-requirements.txt            # 声明：无第三方依赖
-.github/workflows/daily.yml # GitHub Actions 每日定时
-reports/                    # 本地运行时的日报存档（不入库）
-sample_report.md            # 效果样例
-```
+**Q：数据可靠吗？**
+全部来自公开接口，报告底部标注来源。程序对每个源做了容错，单源失效不影响出报。
+
+**Q：会编造新闻吗？**
+提示词里明确禁止编造快讯中没有的数字与公司；日报原文存档可核对。但 LLM 仍可能误判重要性，**请勿作为投资依据**。
+
+---
+
+## ⚠️ 免责声明
+
+本项目仅用于**个人学习与技术研究**。所有新闻内容版权归原媒体所有；生成的日报**不构成任何投资建议**。请遵守目标网站的使用条款，控制请求频率。
+
+## 📄 License
+
+[MIT](LICENSE) © lizhihe-x
