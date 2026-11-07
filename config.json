@@ -1,0 +1,14 @@
+{
+  "title": "每日财经速览",
+  "topics": [
+    "芯片 / 半导体",
+    "光通信",
+    "存储",
+    "AI / 算力",
+    "先进封装"
+  ],
+  "extra_instructions": "",
+  "max_input_items": 120,
+  "hours_window": 36,
+  "max_digest_items": "20~28"
+}
