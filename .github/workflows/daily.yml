@@ -1,12 +1,20 @@
 name: daily-fin-digest
 
 on:
+  # GitHub 的定时器不保证准点（可能延迟几分钟到数小时），
+  # 因此这里设置多个补偿触发点：08:00~09:45 之间每 15 分钟尝试一次，
+  # 配合 main.py 的"当天已出报则跳过"守卫，最早成功的那次生效，不会重复推送。
   schedule:
-    - cron: "0 0 * * *"   # UTC 00:00 = 北京时间 08:00
-  workflow_dispatch: {}
+    - cron: "0 0 * * *"      # 08:00 北京时间（正点）
+    - cron: "20 0 * * *"     # 08:20
+    - cron: "40 0 * * *"     # 08:40
+    - cron: "0 1 * * *"      # 09:00
+    - cron: "20 1 * * *"     # 09:20
+    - cron: "40 1 * * *"     # 09:40
+  workflow_dispatch: {}    # 手动触发（不受守卫限制，可随时补发）
 
 permissions:
-  contents: write   # 允许把日报提交回仓库存档
+  contents: write
 
 jobs:
   send:
@@ -32,7 +40,7 @@ jobs:
           git config user.email "fin-daily-bot@users.noreply.github.com"
           git add reports/ || true
           if git diff --staged --quiet; then
-            echo "今日日报已存在，无变化"
+            echo "无新内容需要存档"
           else
             git commit -m "📰 日报存档 $(date -u -d '+8 hour' +%Y-%m-%d)"
             git pull --rebase origin main || true
