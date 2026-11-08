@@ -36,6 +36,12 @@ def main():
     date_str = "%s 周%s" % (now.strftime("%Y-%m-%d"), "一二三四五六日"[now.weekday()])
     title = cfg.get("title") or "每日财经速览"
 
+    # 幂等守卫：定时任务可能被触发多次（补偿延迟），当天已经出过报就不再重复推送
+    path = os.path.join("reports", now.strftime("%Y-%m-%d") + ".md")
+    if os.environ.get("GITHUB_EVENT_NAME") == "schedule" and os.path.exists(path):
+        print("今日日报已存在（%s），跳过本次，避免重复推送" % path)
+        return
+
     print("[1/3] 抓取新闻 ...")
     items, errors = news.collect_news(hours=int(cfg.get("hours_window", 36)))
     if errors:
@@ -58,7 +64,6 @@ def main():
         "",
     ])
     os.makedirs("reports", exist_ok=True)
-    path = os.path.join("reports", now.strftime("%Y-%m-%d") + ".md")
     with open(path, "w", encoding="utf-8") as f:
         f.write(report)
     print("      已保存 %s（摘要模式: %s）" % (path, mode))
